@@ -1,2 +1,6 @@
 Run
 	ruby dnsspoof.rb [Interface] [Victim IP] [Spoofer Web IP]
+	
+			-Interface: network interface to use.  Use em1 in the lab
+			-Victim IP: IP address of the victim machine
+			-Spoofer Web IP: IP address of the server that the attacker wants victims to go to instead of the real one.
