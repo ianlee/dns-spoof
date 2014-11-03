@@ -1,0 +1,2 @@
+Run
+	ruby dnsspoof.rb [Interface] [Victim IP]
