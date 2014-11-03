@@ -9,7 +9,7 @@ unless (ARGV.size == 2)
 	exit
 end
 
-def initialize(intface, victimIP)
+def initA(intface, victimIP)
 	@interface = intface
 	@victimIP = victimIP
 	@routerIP = "192.168.0.100"
@@ -121,7 +121,7 @@ begin
 	puts "Victim IP: " + victIP
 	puts "Interface: " + intface
 
-	initialize(intface, victIP)
+	initA(intface, victIP)
 
 	puts "Source MAC: " + @srcMAC[:eth_saddr].to_s
 	puts "Dest MAC: " + @victimMAC.to_s
