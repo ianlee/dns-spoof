@@ -92,6 +92,7 @@ def sendResponse(packet, domainName)
 	response.ip_saddr = packet.ip_daddr
 	response.ip_daddr = @victimIP
 	response.eth_daddr = @victimMAC
+	response.eth_saddr = @srcMAC
 
 	# Transaction ID
 	response.payload = packet.payload[0,2]
