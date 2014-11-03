@@ -89,7 +89,7 @@ def getDomain(payload)
 		#length = payload[0].to_i
 		if(length != 0)
 			domainName += payload[1, length] + "."
-			payload += payload[length + 1..-1]
+			payload = payload[length + 1..-1]
 		else
 			return domainName = domainName[0, domainName.length - 1]
 		end

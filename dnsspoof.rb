@@ -158,11 +158,7 @@ def initDns(intface, victimIP)
 		if PacketFu::UDPPacket.can_parse?(packet)
 			puts "dns packet found!" 
 			pkt = PacketFu::Packet.parse packet
-			packet_info = [pkt.ip_saddr, pkt.ip_daddr]
-			src_ip = "%s" % packet_info[0]
-			dst_ip = "%s" % packet_info[1]
-			 
-
+			
 
 
 			domainName = getDomainName(pkt.payload[12..-1])
